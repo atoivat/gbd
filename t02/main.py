@@ -13,38 +13,46 @@ def main():
         print("Erro na criaçao de arquivo...")
         exit()
 
-    rand_acess = random.randint(0, nro_de_registros)
-    print('rand acess = ', rand_acess)
-
+    rand_acess = random.randint(0, nro_de_registros-1)
     if not read_random(file_path, rand_acess):
         print("Erro na leitura aleatoria de arquivo...")
         exit()
 
-    if not isrt_at_end(file_path, "aseaosekaoek", nro_de_registros):
+    if not isrt_at_end(file_path):
         print("Erro na insercao de registro ...")
         exit()
-
-    print('size= ', os.path.getsize("./register_file.txt"))
-
     nro_de_registros += 1
 
     print_file(nro_de_registros)
 
-    # if not read_random(file_path, rand_acess):
-    #     print("Erro na leitura aleatoria de arquivo...")
+    rand_string = ''.join(random.choice(
+        string.ascii_letters) for i in range(46))
+
+    rand_update = random.randint(0, nro_de_registros-1)
+    if not update_random(file_path, rand_update, rand_string):
+        print("Erro no update do registro ...")
+        exit()
+
+    print_file(nro_de_registros)
+
+    rand_delete = random.randint(0, nro_de_registros-1)
+    if not delete_random(file_path, rand_delete):
+        print("Erro na deleção de registro ...")
+        exit()
+    print_file(nro_de_registros)
 
 
 def print_file(nro_de_registros: int):
 
     try:
-        with open(file_path, 'r+') as file:
+        with open(file_path, 'r+b') as file:
             for _ in range(nro_de_registros):
                 nseq_part = file.read(4)
                 nseq_part = int.from_bytes(
-                    nseq_part.encode(), 'big', signed=True)
+                    nseq_part, 'big', signed=True)
 
                 data_part = file.read(46)
-                register_searched = f'{nseq_part} - {data_part}'
+                register_searched = f'{nseq_part} - {data_part.decode()}'
                 print('register  = ', register_searched)
 
             file.close()
@@ -74,26 +82,27 @@ def create_heap_file(nro_de_registros: int) -> bool:
             file.close()
 
             # check file size
-            print(os.path.getsize("./register_file.txt"))
+            print('File Size= ', os.path.getsize("./register_file.txt"))
             return True
     except:
         return False
 
 
-def read_random(file_path: str):
+def read_random(file_path: str, nseq: int):
     '''Given a [file] access the register in the [nseq] asked'''
-    offset = os.path.getsize("./register_file.txt")
+    # [TODO] check nseq == -1  ?
     try:
         with open(file_path, 'r') as file:
             # Working the index arithmetic
-            file.seek(offset)
+            file.seek(nseq*50)
 
             nseq_part = file.read(4)
             nseq_part = int.from_bytes(nseq_part.encode(), 'big', signed=True)
 
             data_part = file.read(46)
             register_searched = f'{nseq_part} - {data_part}'
-            print('rand acess register val = ', register_searched)
+            print(
+                f'Reading  Random at number = {nseq} ...\n... Register value = ', register_searched)
 
         file.close()
         return True
@@ -102,17 +111,23 @@ def read_random(file_path: str):
         return False
 
 
-def isrt_at_end(file_path: str, data: str, nro_reg: int):
-    '''TODO: limit the number of bytes in [data]'''
+def isrt_at_end(file_path: str):
+    '''Insert a value to the end of the file'''
+
+    offset = os.path.getsize("./register_file.txt")
+    nro_reg = offset//50
+
     try:
         with open(file_path, 'r+b') as file:
 
-            file.seek(nro_reg*50)
-            print("where= ", file.tell())
+            file.seek(offset)
 
             file.write(nro_reg.to_bytes(4, 'big', signed=True))
-            file.write(data.encode())
-            print(f'{nro_reg} - {data}')
+
+            rand_string = ''.join(random.choice(
+                string.ascii_letters) for i in range(46))
+            print(f'Insert at the end ...\n... {nro_reg} - {rand_string}  ')
+            file.write(rand_string.encode())
 
         file.close()
         return True
@@ -121,12 +136,43 @@ def isrt_at_end(file_path: str, data: str, nro_reg: int):
         return False
 
 
-def update_random(file, nseq: int, novo_text: str):
-    pass
+def update_random(file, nseq: int, new_text: str):
+    '''Update Register at [nseq] index, with the new value [new_text]'''
+
+    print(f'Update at {nseq}...')
+    try:
+        with open(file_path, 'r+b') as file:
+
+            file.seek((nseq*50) + 4)
+            file.write(new_text.encode())
+
+        file.close()
+        return True
+
+    except:
+        return False
 
 
 def delete_random(file, nseq: int):
-    pass
+
+    print(f'Deleting index at {nseq}... ')
+    try:
+        with open(file_path, 'r+b') as file:
+
+            file.seek(nseq*50)
+
+            nseq_read = file.read(4)
+            nseq_read = int.from_bytes(nseq_read, 'big', signed=True)
+
+            file.seek(nseq*50)
+            res = (nseq_read*(-1)).to_bytes(4, 'big', signed=True)
+            file.write(res)
+
+        file.close()
+        return True
+
+    except:
+        return False
 
 
 if __name__ == "__main__":
