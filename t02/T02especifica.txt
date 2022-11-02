@@ -27,9 +27,8 @@ memória RAM do equipamento de testes.
 
 		1.A.2) READ_RANDOM
                   -  ENTRADA:arquivo com registros
-		  -          NSEQ 
+		  			-          NSEQ 
                   -  SAIDA: print registro do aluno
-
 		1.A.3) ISRT_AT_END
 		  -     ENTRADA:  arquivo com registros
 		  -     SAIDA: arquivo com mais um registro
