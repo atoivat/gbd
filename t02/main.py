@@ -1,12 +1,12 @@
+import os
 import random
 import string
-import os
 
-from random_access import random_sweep
 from heap_file_functions import input_main
+from random_access import random_sweep
 from sequential_access import sequential_access
 
-file_path = './register_file.txt'
+file_path = "./register_file.txt"
 
 
 def main_a():
@@ -25,9 +25,12 @@ def main_b():
 
     # print results
     print(
-        "Quantidade de registros validos:", register_count,
-        "\nNumero de paginas lidas:", readed_pages,
-        "\nTempo de processamento:", proc_time
+        "Quantidade de registros validos:",
+        register_count,
+        "\nNumero de paginas lidas:",
+        readed_pages,
+        "\nTempo de processamento:",
+        proc_time,
     )
 
 
@@ -40,11 +43,14 @@ def main_c():
     )
 
     print(
-        "Tempo de processamento:", total_time,
-        "\nQuantidade de registros validos lidos:", valid_registers,
-        "\nQuantidade de registros invalidos lidos:", invalid_registers
+        "Tempo de processamento:",
+        total_time,
+        "\nQuantidade de registros validos lidos:",
+        valid_registers,
+        "\nQuantidade de registros invalidos lidos:",
+        invalid_registers,
     )
 
 
 if __name__ == "__main__":
-    main_c()
+    main_a()
