@@ -2,10 +2,6 @@ import os
 import random
 import string
 
-# Quantos registros são alocados em memória para escrita posterior em disco por vez,
-# na geração de arquivos
-MAX_REGISTERS_IN_MEMORY = 20000
-
 
 def input_main(file_path):
     nro_de_registros = int(input("Número de registros: "))
@@ -48,8 +44,8 @@ def input_main(file_path):
     if has_delete == "y":
         num = int(input("Quantos delecoes ?"))
 
-        to_delete = random.sample(list(range(nro_de_registros)), num)
-        for n_seq_delete in to_delete:
+        for n_seq_delete in range(num):
+            n_seq_delete = random.randint(0, nro_de_registros - 1)
             if not delete_random(file_path, n_seq_delete):
                 print("Erro na deleção de registro ...")
                 exit()
@@ -78,38 +74,23 @@ def create_heap_file(file_path: str, nro_de_registros: int) -> bool:
     the 4 first bytes goes to NSEQ(int) which is ordered,
     and the last 46 bytes are for data TEXT[char] with is random too.
     """
-    in_memory_registers = b""
-    in_memory_registers_count = 0
-
-    write_count = 0
 
     try:
         with open(file_path, "wb") as file:
             for i in range(nro_de_registros):
                 # write NSEQ
-                in_memory_registers += i.to_bytes(4, "big", signed=True)
+                file.write(i.to_bytes(4, "big", signed=True))
 
                 # write random DATA
                 rand_string = "".join(
                     random.choice(string.ascii_letters) for i in range(46)
                 )
-                # print(f"{i} - {rand_string} ")
-                in_memory_registers += rand_string.encode()
+                # print(f'{i} - {rand_string} ')
 
-                in_memory_registers_count += 1
+                if i % 20000 == 0:
+                    print("...", i)
 
-                if (
-                    in_memory_registers_count >= MAX_REGISTERS_IN_MEMORY
-                    or i >= nro_de_registros - 1
-                ):
-                    print("...", write_count)
-                    write_count += 1
-
-                    # Chegou no final dos registros, ou no final do grupo de registros em memória
-                    file.write(in_memory_registers)
-
-                    in_memory_registers = b""
-                    in_memory_registers_count = 0
+                file.write(rand_string.encode())
 
             file.close()
 
