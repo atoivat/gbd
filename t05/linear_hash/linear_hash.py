@@ -1,10 +1,13 @@
+from io import SEEK_CUR, SEEK_END
+
 INITIAL_BUCKET_NO = 4
 BUCKET_SIZE = 4
+REGISTER_SIZE = 50
 
 
 def hash_f(hi: int, key: int):
     """Aplica a função de hash, de acordo com o tamanho atual do diretório."""
-    mod_op = 2**hi
+    mod_op = (2**hi) * INITIAL_BUCKET_NO
     return key % mod_op
 
 
@@ -19,6 +22,13 @@ class LinearHash:
         self.hash_file_path = hash_file_path
         self.overflow_file_path = overflow_file_path
         self.data_file_path = data_file_path
+
+    def __del__(self):
+        """Desaloca recursos do objeto (fecha os arquivos abertos)"""
+        self.hash_file.close()
+        self.overflow_file.close()
+        if self.data_file_path is not None:
+            self.data_file.close()
 
     def load_files(self):
         """Carrega os arquivos para memória, dado seus caminhos."""
@@ -50,7 +60,9 @@ class LinearHash:
             self.hash_file.write((INITIAL_BUCKET_NO).to_bytes(4, "big", signed=True))
 
             # cria os "INITIAL_BUCKET_NO" buckets
-            empty_buckets_str = " " * 50 * BUCKET_SIZE * INITIAL_BUCKET_NO
+            empty_buckets_str = (
+                " " * (REGISTER_SIZE * BUCKET_SIZE + 4) * INITIAL_BUCKET_NO
+            )
             self.hash_file.write(empty_buckets_str.encode())
 
             self.hash_file.seek(0)
@@ -104,6 +116,91 @@ class LinearHash:
         self.hash_file.seek(8)
         self.hash_file.write(value.to_bytes(4, "big", signed=True))
 
+    def search_key(self, key: int) -> bytes:
+        """
+        Busca o registro no hash, a partir da chave.
+        Retorna os bytes correspondentes à 'data entry'.
+        """
+        ...
+
+    def insert(self, nseq: int, text: str):
+        """Inserção de registro no hash."""
+        target_bucket = hash_f(self.level, nseq)
+
+        if target_bucket < self.nxt:
+            # Bucket alvo sofreu um split, necessario uma segunda funcao hash_f+1
+            target_bucket = hash_f(self.level + 1, nseq)
+
+        # Busca posição vazia
+        target_bucket_start = 12 + (REGISTER_SIZE * BUCKET_SIZE + 4) * target_bucket
+        self.hash_file.seek(target_bucket_start)
+
+        searching_file = self.hash_file
+        current_pos = 0
+        overflow_pointer = None
+        new_overflow = False
+        while True:
+            data_read = searching_file.read(4)
+            if data_read.decode() == " " * 4:
+                # Achou posição vazia
+                searching_file.seek(-4, SEEK_CUR)
+                break
+            current_pos += 1
+            searching_file.seek(46, SEEK_CUR)
+            if current_pos >= 4:
+                # Lida com página de overflow
+                pointer_data = searching_file.read(4)
+
+                if pointer_data.decode() == " " * 4:
+                    # Página de overflow ainda não existe, deve criar
+                    # Cria página de overflow
+                    new_overflow = True
+
+                    # Salva posição do searching_file referente ao ponteiro para
+                    # o bucket que será criado
+                    searching_file.seek(-4, SEEK_CUR)
+                    bucket_pointer_offset = searching_file.tell()
+
+                    self.overflow_file.seek(0, SEEK_END)
+                    new_overflow_pointer = self.overflow_file.tell()
+
+                    empty_bucket_str = " " * (REGISTER_SIZE * BUCKET_SIZE + 4)
+                    self.overflow_file.write(empty_bucket_str.encode())
+
+                    # Escreve o ponteiro para a página criada
+                    searching_file.seek(bucket_pointer_offset)
+                    searching_file.write(
+                        new_overflow_pointer.to_bytes(4, "big", signed=True)
+                    )
+
+                    overflow_pointer = new_overflow_pointer
+                else:
+                    overflow_pointer = int.from_bytes(pointer_data, "big", signed=True)
+
+                # Move a busca para a página de overflow
+                searching_file = self.overflow_file
+                searching_file.seek(
+                    (REGISTER_SIZE * BUCKET_SIZE + 4) * overflow_pointer
+                )
+                current_pos = 0
+
+        # Insere na posição vazia
+        searching_file.write(nseq.to_bytes(4, "big", signed=True))
+        searching_file.write(text.encode())
+
+        if new_overflow:
+            # Provocar um split
+            self.split()
+
+    def split(self):
+        ...
+
 
 h = LinearHash("./hash.txt", "./overflow.txt", "data.txt")
 print(h.create_files())
+
+# h.insert(0, "ABCD")
+# h.insert(4, "ABCD")
+# h.insert(8, "ABCD")
+# h.insert(12, "ABCD")
+# h.insert(16, "ABCD")
