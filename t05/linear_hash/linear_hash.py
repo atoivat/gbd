@@ -121,7 +121,61 @@ class LinearHash:
         Busca o registro no hash, a partir da chave.
         Retorna os bytes correspondentes à 'data entry'.
         """
-        ...
+
+        target_bucket = hash_f(self.level, key)
+
+        if target_bucket < self.nxt:
+            # Bucket alvo sofreu um split, necessario uma segunda funcao hash_f+1
+            target_bucket = hash_f(self.level + 1, key)
+
+        target_bucket_start = 12 + (REGISTER_SIZE * BUCKET_SIZE + 4) * target_bucket
+
+        #Posiciona o #HEAD do arquivo no offset do bucket buscado
+        self.hash_file.seek(target_bucket_start)
+
+        searching_file = self.hash_file
+        current_pos = 0
+
+    
+        while True:
+
+            data_read = searching_file.read(4)
+
+            if data_read.decode() == " " * 4:
+                # Achou posição vazia
+                # Logo não há slot com essa chave
+                searching_file.seek(-4, SEEK_CUR)
+                return False
+            
+            elif data_read.decode() == str(key):
+                #Achamos a chave
+                return 0
+            else:
+
+                current_pos += 1
+                searching_file.seek(46, SEEK_CUR)
+
+                # todos os slots estao preenchidos? 
+                if current_pos >= 4:
+                    # Lida com página de overflow
+                    pointer_data = searching_file.read(4)
+
+                    if pointer_data.decode() == " " * 4:
+                        return False
+
+                    elif pointer_data.decode() == str(key):
+                        
+                        return 0
+                    else:
+                        overflow_pointer = int.from_bytes(pointer_data, "big", signed=True)
+
+                    # Move a busca para a página de overflow
+                    searching_file = self.overflow_file
+                    searching_file.seek(
+                        (REGISTER_SIZE * BUCKET_SIZE + 4) * overflow_pointer
+                    )
+                    current_pos = 0
+
 
     def insert(self, nseq: int, text: str):
         """Inserção de registro no hash."""
@@ -133,20 +187,26 @@ class LinearHash:
 
         # Busca posição vazia
         target_bucket_start = 12 + (REGISTER_SIZE * BUCKET_SIZE + 4) * target_bucket
+
+        #Posiciona o #HEAD do arquivo no offset do bucket buscado
         self.hash_file.seek(target_bucket_start)
 
         searching_file = self.hash_file
         current_pos = 0
         overflow_pointer = None
         new_overflow = False
+    
         while True:
             data_read = searching_file.read(4)
+            
             if data_read.decode() == " " * 4:
                 # Achou posição vazia
                 searching_file.seek(-4, SEEK_CUR)
                 break
             current_pos += 1
             searching_file.seek(46, SEEK_CUR)
+
+             # todos os slots estao preenchidos? 
             if current_pos >= 4:
                 # Lida com página de overflow
                 pointer_data = searching_file.read(4)
