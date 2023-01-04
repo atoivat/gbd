@@ -130,13 +130,12 @@ class LinearHash:
 
         target_bucket_start = 12 + (REGISTER_SIZE * BUCKET_SIZE + 4) * target_bucket
 
-        #Posiciona o #HEAD do arquivo no offset do bucket buscado
+        # Posiciona o #HEAD do arquivo no offset do bucket buscado
         self.hash_file.seek(target_bucket_start)
 
         searching_file = self.hash_file
         current_pos = 0
 
-    
         while True:
 
             data_read = searching_file.read(4)
@@ -144,30 +143,35 @@ class LinearHash:
             if data_read.decode() == " " * 4:
                 # Achou posição vazia
                 # Logo não há slot com essa chave
-                searching_file.seek(-4, SEEK_CUR)
-                return False
-            
+                return (-1, -1)
+
             elif data_read.decode() == str(key):
-                #Achamos a chave
-                return 0
+                # Achamos a chave
+                r_nseq = int(pointer_data.decode())
+                r_text = searching_file.read(46)
+                return (r_nseq, r_text)
             else:
 
                 current_pos += 1
                 searching_file.seek(46, SEEK_CUR)
 
-                # todos os slots estao preenchidos? 
+                # todos os slots estao preenchidos?
                 if current_pos >= 4:
                     # Lida com página de overflow
                     pointer_data = searching_file.read(4)
 
                     if pointer_data.decode() == " " * 4:
-                        return False
+                        return (-1, -1)
 
                     elif pointer_data.decode() == str(key):
-                        
-                        return 0
+
+                        r_nseq = int(pointer_data.decode())
+                        r_text = searching_file.read(46)
+                        return (r_nseq, r_text)
                     else:
-                        overflow_pointer = int.from_bytes(pointer_data, "big", signed=True)
+                        overflow_pointer = int.from_bytes(
+                            pointer_data, "big", signed=True
+                        )
 
                     # Move a busca para a página de overflow
                     searching_file = self.overflow_file
@@ -175,7 +179,6 @@ class LinearHash:
                         (REGISTER_SIZE * BUCKET_SIZE + 4) * overflow_pointer
                     )
                     current_pos = 0
-
 
     def insert(self, nseq: int, text: str):
         """Inserção de registro no hash."""
@@ -188,17 +191,17 @@ class LinearHash:
         # Busca posição vazia
         target_bucket_start = 12 + (REGISTER_SIZE * BUCKET_SIZE + 4) * target_bucket
 
-        #Posiciona o #HEAD do arquivo no offset do bucket buscado
+        # Posiciona o #HEAD do arquivo no offset do bucket buscado
         self.hash_file.seek(target_bucket_start)
 
         searching_file = self.hash_file
         current_pos = 0
         overflow_pointer = None
         new_overflow = False
-    
+
         while True:
             data_read = searching_file.read(4)
-            
+
             if data_read.decode() == " " * 4:
                 # Achou posição vazia
                 searching_file.seek(-4, SEEK_CUR)
@@ -206,7 +209,7 @@ class LinearHash:
             current_pos += 1
             searching_file.seek(46, SEEK_CUR)
 
-             # todos os slots estao preenchidos? 
+            # todos os slots estao preenchidos?
             if current_pos >= 4:
                 # Lida com página de overflow
                 pointer_data = searching_file.read(4)
@@ -221,6 +224,9 @@ class LinearHash:
                     searching_file.seek(-4, SEEK_CUR)
                     bucket_pointer_offset = searching_file.tell()
 
+                    # TODO: procurar um bucket vazio desde o começo do arquivo,
+                    # olhando de 204 em 204 bytes, até um primeiro bucket vazio
+                    # disponível
                     self.overflow_file.seek(0, SEEK_END)
                     new_overflow_pointer = self.overflow_file.tell()
 
@@ -253,7 +259,25 @@ class LinearHash:
             self.split()
 
     def split(self):
-        ...
+
+        # Para toda as chaves no arquivo principal ou de overflow
+        # faremos o calculo da nova funcao hash_f+1
+        # hash_f(self.level+1, key) e assim distribuindo as chaves nos devidos buckets
+
+        # TODO
+        # Lê todas as entradas no bucket e nas páginas de overflow correspondentes,
+        # zerando cada uma delas e armazenando os registros lidos numa lista em memória.
+        # Atenção para "limpar" as páginas de overflow
+
+        # A partir da lista em memória, distribui os elementos entre os buckets
+
+        self.nxt += 1
+        # Confere se deve zerar o nxt e aumentar o level
+        # (depois de uma rodada completa de splits)
+        if self.nxt >= ((2**self.level) * INITIAL_BUCKET_NO):
+            self.nxt = 0
+            self.level += 1
+        self.current_bucket_no += 1
 
 
 h = LinearHash("./hash.txt", "./overflow.txt", "data.txt")
