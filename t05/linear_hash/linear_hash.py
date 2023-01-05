@@ -260,31 +260,64 @@ class LinearHash:
         return new_overflow
 
     def split(self):
+        # Cria bucket vazio no final do hash file
+        self.hash_file.seek(0, SEEK_END)
+        empty_bucket_str = " " * (REGISTER_SIZE * BUCKET_SIZE + 4)
+        self.hash_file.write(empty_bucket_str.encode())
 
         # Para toda as chaves no arquivo principal ou de overflow
         # faremos o calculo da nova funcao hash_f+1
         # hash_f(self.level+1, key) e assim distribuindo as chaves nos devidos buckets
         nxt_bucket_start = 12 + (REGISTER_SIZE * BUCKET_SIZE + 4) * self.nxt
 
-        # TODO
         # Lê todas as entradas no bucket e nas páginas de overflow correspondentes,
         # zerando cada uma delas e armazenando os registros lidos numa lista em memória.
         # Atenção para "limpar" as páginas de overflow
 
-        # Lista de offsets das páginas (primeiro é o próprio bucket, em seguida as de overflow)
-        pages_offsets = [nxt_bucket_start]
-
         # lista de registros lidos
         registers = []
 
+        current_bucket = nxt_bucket_start
+        current_file = self.hash_file
         # Loop
-        #   Lê o bucket atual inteiro
-        #   Guarda os registros na lista de registros
-        #   Confere ponteiro da página de overflow
-        #   Se tiver:
-        #       Guarda ponteiro na lista
-        #       limpa todas as entradas no bucket atual, menos o ponteiro de overflow
-        #       o bucket atual vira a página de overflow
+        while True:
+            # Lê o bucket atual inteiro
+            current_file.seek(current_bucket)
+
+            # Guarda os registros na lista de registros
+            for _ in range(BUCKET_SIZE):
+                register_content = current_file.read(REGISTER_SIZE)
+
+                # Confere se registro não está vazio
+                if register_content[:4].decode() == " " * 4:
+                    continue
+
+                nseq = int.from_bytes(register_content[:4], "big", signed=True)
+                text = register_content[4:].decode()
+                registers.append((nseq, text))
+
+            # limpa todas as entradas no bucket atual, menos o ponteiro de overflow
+            current_file.seek(current_bucket)
+            empty_regs_str = " " * (REGISTER_SIZE * BUCKET_SIZE)
+            current_file.write(empty_regs_str.encode())
+
+            # Confere ponteiro da página de overflow
+            overflow_pointer = current_file.read(4)
+            # Se tiver:
+            if overflow_pointer.decode() != " " * 4:
+                overflow_pointer_value = int.from_bytes(
+                    overflow_pointer, "big", signed=True
+                )
+
+                # Limpa o ponteiro para a página de overflow
+                current_file.seek(-4, SEEK_CUR)
+                current_file.write("    ".encode())
+
+                # o bucket atual vira a página de overflow
+                current_file = self.overflow_file
+                current_bucket = overflow_pointer_value
+            else:
+                break
 
         self.nxt += 1
         # Confere se deve zerar o nxt e aumentar o level
@@ -298,13 +331,3 @@ class LinearHash:
             self.insert(nseq, text, check_split=False)
 
         self.current_bucket_no += 1
-
-
-h = LinearHash("./hash.txt", "./overflow.txt", "data.txt")
-print(h.create_files())
-
-# h.insert(0, "ABCD")
-# h.insert(4, "ABCD")
-# h.insert(8, "ABCD")
-# h.insert(12, "ABCD")
-# h.insert(16, "ABCD")
