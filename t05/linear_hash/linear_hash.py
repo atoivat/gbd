@@ -140,16 +140,11 @@ class LinearHash:
 
             data_read = searching_file.read(4)
 
-            if data_read.decode() == " " * 4:
-                # Achou posição vazia
-                # Logo não há slot com essa chave
-                return (-1, -1)
-
-            elif data_read.decode() == str(key):
+            if int.from_bytes(data_read, "big", signed=True) == key:
                 # Achamos a chave
-                r_nseq = int(pointer_data.decode())
+                r_nseq = int.from_bytes(data_read, "big", signed=True)
                 r_text = searching_file.read(46)
-                return (r_nseq, r_text)
+                return (r_nseq, r_text.decode())
             else:
 
                 current_pos += 1
@@ -160,9 +155,11 @@ class LinearHash:
                     # Lida com página de overflow
                     pointer_data = searching_file.read(4)
 
+                    # TODO: conferir esse caso
                     if pointer_data.decode() == " " * 4:
                         return (-1, -1)
 
+                    # TODO: conferir esse caso
                     elif pointer_data.decode() == str(key):
 
                         r_nseq = int(pointer_data.decode())
@@ -182,6 +179,9 @@ class LinearHash:
 
     def insert(self, nseq: int, text: str, check_split: bool = True):
         """Inserção de registro no hash."""
+
+        # TODO: Conferir se nseq já existe no hash antes de inserir!!!
+
         target_bucket = hash_f(self.level, nseq)
 
         if target_bucket < self.nxt:

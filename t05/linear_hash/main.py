@@ -18,6 +18,7 @@ def main():
 
     h.insert(12, "doze")
     print(h.search_key(12))
+    print(h.search_key(16))
 
     h.insert(16, "dezesseis")
     print(h.search_key(0))
@@ -25,6 +26,7 @@ def main():
     print(h.search_key(8))
     print(h.search_key(12))
     print(h.search_key(16))
+    print(h.search_key(18))
 
 
 if __name__ == "__main__":
