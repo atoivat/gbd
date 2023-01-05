@@ -144,6 +144,7 @@ class LinearHash:
                 # Achamos a chave
                 r_nseq = int.from_bytes(data_read, "big", signed=True)
                 r_text = searching_file.read(46)
+
                 return (r_nseq, r_text.decode())
             else:
 
@@ -156,6 +157,7 @@ class LinearHash:
                     pointer_data = searching_file.read(4)
 
                     # TODO: conferir esse caso
+                    print(str(pointer_data.decode()))
                     if pointer_data.decode() == " " * 4:
                         return (-1, -1)
 
@@ -240,6 +242,8 @@ class LinearHash:
                     )
 
                     overflow_pointer = new_overflow_pointer
+                    if searching_file == self.overflow_file: 
+                        break
                 else:
                     overflow_pointer = int.from_bytes(pointer_data, "big", signed=True)
 
@@ -289,7 +293,7 @@ class LinearHash:
                 register_content = current_file.read(REGISTER_SIZE)
 
                 # Confere se registro não está vazio
-                if register_content[:4].decode() == " " * 4:
+                if register_content[:5].decode() == " " * 4:
                     continue
 
                 nseq = int.from_bytes(register_content[:4], "big", signed=True)
