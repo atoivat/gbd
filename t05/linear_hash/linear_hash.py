@@ -180,7 +180,7 @@ class LinearHash:
                     )
                     current_pos = 0
 
-    def insert(self, nseq: int, text: str):
+    def insert(self, nseq: int, text: str, check_split: bool = True):
         """Inserção de registro no hash."""
         target_bucket = hash_f(self.level, nseq)
 
@@ -254,22 +254,37 @@ class LinearHash:
         searching_file.write(nseq.to_bytes(4, "big", signed=True))
         searching_file.write(text.encode())
 
-        if new_overflow:
+        if new_overflow and check_split:
             # Provocar um split
             self.split()
+        return new_overflow
 
     def split(self):
 
         # Para toda as chaves no arquivo principal ou de overflow
         # faremos o calculo da nova funcao hash_f+1
         # hash_f(self.level+1, key) e assim distribuindo as chaves nos devidos buckets
+        nxt_bucket_start = 12 + (REGISTER_SIZE * BUCKET_SIZE + 4) * self.nxt
 
         # TODO
         # Lê todas as entradas no bucket e nas páginas de overflow correspondentes,
         # zerando cada uma delas e armazenando os registros lidos numa lista em memória.
         # Atenção para "limpar" as páginas de overflow
 
-        # A partir da lista em memória, distribui os elementos entre os buckets
+        # Lista de offsets das páginas (primeiro é o próprio bucket, em seguida as de overflow)
+        pages_offsets = [nxt_bucket_start]
+
+        # lista de registros lidos
+        registers = []
+
+        # Loop
+        #   Lê o bucket atual inteiro
+        #   Guarda os registros na lista de registros
+        #   Confere ponteiro da página de overflow
+        #   Se tiver:
+        #       Guarda ponteiro na lista
+        #       limpa todas as entradas no bucket atual, menos o ponteiro de overflow
+        #       o bucket atual vira a página de overflow
 
         self.nxt += 1
         # Confere se deve zerar o nxt e aumentar o level
@@ -277,6 +292,11 @@ class LinearHash:
         if self.nxt >= ((2**self.level) * INITIAL_BUCKET_NO):
             self.nxt = 0
             self.level += 1
+
+        # A partir da lista de registros em memória, distribui os elementos entre os buckets (usando o algoritmo de inserção sem "check_split")
+        for nseq, text in registers:
+            self.insert(nseq, text, check_split=False)
+
         self.current_bucket_no += 1
 
 
