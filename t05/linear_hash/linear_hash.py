@@ -157,32 +157,22 @@ class LinearHash:
                     pointer_data = searching_file.read(4)
 
                     # TODO: conferir esse caso
-                    print(str(pointer_data.decode()))
-                    if pointer_data.decode() == " " * 4:
+                    if pointer_data == b" " * 4:
                         return (-1, -1)
 
-                    # TODO: conferir esse caso
-                    elif pointer_data.decode() == str(key):
-
-                        r_nseq = int(pointer_data.decode())
-                        r_text = searching_file.read(46)
-                        return (r_nseq, r_text)
-                    else:
-                        overflow_pointer = int.from_bytes(
-                            pointer_data, "big", signed=True
-                        )
+                    overflow_pointer = int.from_bytes(pointer_data, "big", signed=True)
 
                     # Move a busca para a página de overflow
                     searching_file = self.overflow_file
-                    searching_file.seek(
-                        (REGISTER_SIZE * BUCKET_SIZE + 4) * overflow_pointer
-                    )
+                    searching_file.seek(overflow_pointer)
                     current_pos = 0
 
     def insert(self, nseq: int, text: str, check_split: bool = True):
         """Inserção de registro no hash."""
 
-        # TODO: Conferir se nseq já existe no hash antes de inserir!!!
+        # Conferir se nseq já existe no hash antes de inserir!!!
+        if self.search_key(nseq) != (-1, -1):
+            return False
 
         target_bucket = hash_f(self.level, nseq)
 
@@ -204,7 +194,7 @@ class LinearHash:
         while True:
             data_read = searching_file.read(4)
 
-            if data_read.decode() == " " * 4:
+            if data_read == b" " * 4:
                 # Achou posição vazia
                 searching_file.seek(-4, SEEK_CUR)
                 break
@@ -216,7 +206,7 @@ class LinearHash:
                 # Lida com página de overflow
                 pointer_data = searching_file.read(4)
 
-                if pointer_data.decode() == " " * 4:
+                if pointer_data == b" " * 4:
                     # Página de overflow ainda não existe, deve criar
                     # Cria página de overflow
                     new_overflow = True
@@ -242,16 +232,14 @@ class LinearHash:
                     )
 
                     overflow_pointer = new_overflow_pointer
-                    if searching_file == self.overflow_file: 
+                    if searching_file == self.overflow_file:
                         break
                 else:
                     overflow_pointer = int.from_bytes(pointer_data, "big", signed=True)
 
                 # Move a busca para a página de overflow
                 searching_file = self.overflow_file
-                searching_file.seek(
-                    (REGISTER_SIZE * BUCKET_SIZE + 4) * overflow_pointer
-                )
+                searching_file.seek(overflow_pointer)
                 current_pos = 0
 
         # Insere na posição vazia
@@ -293,7 +281,7 @@ class LinearHash:
                 register_content = current_file.read(REGISTER_SIZE)
 
                 # Confere se registro não está vazio
-                if register_content[:5].decode() == " " * 4:
+                if register_content[:5] == b" " * 4:
                     continue
 
                 nseq = int.from_bytes(register_content[:4], "big", signed=True)
