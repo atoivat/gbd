@@ -249,7 +249,7 @@ class LinearHash:
         if new_overflow and check_split:
             # Provocar um split
             self.split()
-        return new_overflow
+        return True
 
     def split(self):
         # Cria bucket vazio no final do hash file
@@ -323,3 +323,50 @@ class LinearHash:
             self.insert(nseq, text, check_split=False)
 
         self.current_bucket_no += 1
+
+    def delete(self, key: int):
+        target_bucket = hash_f(self.level, key)
+
+        if target_bucket < self.nxt:
+            # Bucket alvo sofreu um split, necessario uma segunda funcao hash_f+1
+            target_bucket = hash_f(self.level + 1, key)
+
+        target_bucket_start = 12 + (REGISTER_SIZE * BUCKET_SIZE + 4) * target_bucket
+
+        # Posiciona o #HEAD do arquivo no offset do bucket buscado
+        self.hash_file.seek(target_bucket_start)
+
+        searching_file = self.hash_file
+        current_pos = 0
+
+        while True:
+
+            data_read = searching_file.read(4)
+
+            if int.from_bytes(data_read, "big", signed=True) == key:
+                # Achamos a chave
+
+                searching_file.seek(-4, SEEK_CUR)
+                searching_file.write(b" " * 50)
+
+                return True
+            else:
+
+                current_pos += 1
+                searching_file.seek(46, SEEK_CUR)
+
+                # todos os slots estao preenchidos?
+                if current_pos >= 4:
+                    # Lida com página de overflow
+                    pointer_data = searching_file.read(4)
+
+                    # TODO: conferir esse caso
+                    if pointer_data == b" " * 4:
+                        return False
+
+                    overflow_pointer = int.from_bytes(pointer_data, "big", signed=True)
+
+                    # Move a busca para a página de overflow
+                    searching_file = self.overflow_file
+                    searching_file.seek(overflow_pointer)
+                    current_pos = 0
